@@ -22,6 +22,7 @@
 // SOFTWARE.
 //
 
+#include <stdio.h>
 #include "timesync.h"
 
 #include <stdint.h>

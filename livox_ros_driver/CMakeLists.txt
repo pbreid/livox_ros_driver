@@ -35,6 +35,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## Find pcl lib
 find_package(PCL REQUIRED)
 
+## Find Eigen
+find_package(Eigen3 REQUIRED)
+
 ## Generate messages in the 'msg' folder
 add_message_files(FILES
 	CustomPoint.msg
@@ -83,48 +86,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 ## make sure the livox_sdk_static library is installed
-find_library(LIVOX_SDK_LIBRARY liblivox_sdk_static.a /usr/local/lib)
+find_library(LIVOX_SDK_LIBRARY liblivox_sdk_static.a /opt/ros/noetic/lib)
 
 if((NOT LIVOX_SDK_LIBRARY) OR (NOT EXISTS ${LIVOX_SDK_LIBRARY}))
 	# couldn't find the livox sdk library
 	message("Coudn't find livox sdk library!")
 	message("Download Livox-SDK from github and build&install it please!")
-	message("Download Livox-SDK from github and build&install it please!")
-	message("Download Livox-SDK from github and build&install it please!")
-
-	message("git clone Livox-SDK from github temporarily, only for ROS distro jenkins build!")
-
-	# clone livox sdk source code from github
-	execute_process(COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK OUTPUT_VARIABLE cmd_res)
-	message("Try to pull the livox sdk source code from github")
-	FOREACH(res ${cmd_res})
-		MESSAGE(${res})
-	ENDFOREACH()
-
-	execute_process(COMMAND git clone https://github.com/Livox-SDK/Livox-SDK.git ${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK OUTPUT_VARIABLE cmd_res)
-	FOREACH(res ${cmd_res})
-		MESSAGE(${res})
-	ENDFOREACH()
-
-	execute_process(COMMAND cmake .. WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK/build OUTPUT_VARIABLE cmd_res)
-	FOREACH(res ${cmd_res})
-		MESSAGE(${res})
-	ENDFOREACH()
-
-	execute_process(COMMAND make WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK/build OUTPUT_VARIABLE cmd_res)
-	FOREACH(res ${cmd_res})
-		MESSAGE(${res})
-	ENDFOREACH()
-
-	include_directories(
-		./
-		${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK/sdk_core/include
-	)
-
-	link_directories(
-		./
-		${CMAKE_CURRENT_SOURCE_DIR}/Livox-SDK/build/sdk_core
-	)
 
 else()
 	message("find livox sdk library success")
@@ -194,7 +161,8 @@ target_include_directories(${PROJECT_NAME}_node
 # link libraries
 #---------------------------------------------------------------------------------------
 target_link_libraries(${PROJECT_NAME}_node
-	livox_sdk_static.a
+#	livox_sdk_static.a
+	${LIVOX_SDK_LIBRARY}
 	${Boost_LIBRARY}
 	${catkin_LIBRARIES}
 	${PCL_LIBRARIES}

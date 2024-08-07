@@ -23,6 +23,7 @@
 //
 
 #ifndef TIMESYNC_TIMESYNC_H_
+#include <memory>
 #define TIMESYNC_TIMESYNC_H_
 
 #include <thread>
