@@ -148,6 +148,87 @@ std::string LdsLidar::GetConnectedLidarBroadcastCode(uint8_t handle) {
     return lidar ? lidar->info.broadcast_code : "";
 }
 
+
+void LdsLidar::ReinitializeLidar(uint8_t handle) {
+  if (handle >= kMaxLidarCount) {
+    ROS_ERROR("Invalid LiDAR handle: %d", handle);
+    return;
+  }
+
+  LidarDevice *p_lidar = &(lidars_[handle]);
+  ROS_INFO("Attempting to reinitialize LiDAR[%s]. Connect state: %d, LiDAR state: %d", 
+           p_lidar->info.broadcast_code, p_lidar->connect_state, p_lidar->info.state);
+
+  // Allow reinitialization if the LiDAR is connected, regardless of its current state
+  if (p_lidar->connect_state >= kConnectStateOn) {
+    ROS_INFO("Reinitializing LiDAR[%s]...", p_lidar->info.broadcast_code);
+
+    // Reset configuration bits
+    p_lidar->config.set_bits = 0;
+
+    // Reinitialize LiDAR settings
+    if (p_lidar->config.coordinate != 0) {
+      SetSphericalCoordinate(handle, SetCoordinateCb, this);
+    } else {
+      SetCartesianCoordinate(handle, SetCoordinateCb, this);
+    }
+    p_lidar->config.set_bits |= kConfigCoordinate;
+    
+    if (kDeviceTypeLidarMid40 != p_lidar->info.type) {
+      LidarSetPointCloudReturnMode(
+          handle, (PointCloudReturnMode)(p_lidar->config.return_mode),
+          SetPointCloudReturnModeCb, this);
+      p_lidar->config.set_bits |= kConfigReturnMode;
+    }
+    
+    if ((kDeviceTypeLidarMid70 != p_lidar->info.type) && (kDeviceTypeLidarMid40 != p_lidar->info.type)) {
+      LidarSetImuPushFrequency(handle, (ImuFreq)(p_lidar->config.imu_rate),
+                               SetImuRatePushFrequencyCb, this);
+      p_lidar->config.set_bits |= kConfigImuRate;
+    }
+
+    if (p_lidar->config.extrinsic_parameter_source == kExtrinsicParameterFromLidar) {
+      LidarGetExtrinsicParameter(handle, GetLidarExtrinsicParameterCb, this);
+      p_lidar->config.set_bits |= kConfigGetExtrinsicParameter;
+    }
+
+    if (kDeviceTypeLidarTele == p_lidar->info.type) {
+      if (p_lidar->config.enable_high_sensitivity) {
+        LidarEnableHighSensitivity(handle, SetHighSensitivityCb, this);
+      } else {
+        LidarDisableHighSensitivity(handle, SetHighSensitivityCb, this);
+      }
+      p_lidar->config.set_bits |= kConfigSetHighSensitivity;
+    }
+
+    int retry_count = 0;
+    int max_retries = 20; 
+    while (p_lidar->config.set_bits != 0 && retry_count < max_retries) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      retry_count++;
+    }
+
+    if (p_lidar->config.set_bits != 0) {
+      ROS_WARN("Not all configurations were set for LiDAR[%s]. Remaining set_bits: 0x%X", 
+              p_lidar->info.broadcast_code, p_lidar->config.set_bits);
+    } else {
+      ROS_INFO("All configurations successfully set for LiDAR[%s]", p_lidar->info.broadcast_code);
+    }
+
+    // Start sampling
+    ROS_INFO("Starting sampling for LiDAR[%s]", p_lidar->info.broadcast_code);
+    LidarStartSampling(handle, StartSampleCb, this);
+    
+    // Set connection state to sampling
+    p_lidar->connect_state = kConnectStateSampling;
+
+    ROS_INFO("LiDAR[%s] reinitialized and sampling started", p_lidar->info.broadcast_code);
+  } else {
+    ROS_WARN("Cannot reinitialize LiDAR[%s]. Connect state: %d, LiDAR state: %d", 
+             p_lidar->info.broadcast_code, p_lidar->connect_state, p_lidar->info.state);
+  }
+}
+
 bool LdsLidar::SetLidarMode(uint8_t handle, LidarMode mode) {
     LidarDevice* lidar = GetConnectedLidar(handle);
     if (!lidar) {
@@ -158,6 +239,8 @@ bool LdsLidar::SetLidarMode(uint8_t handle, LidarMode mode) {
     livox_status status = LidarSetMode(handle, mode, nullptr, nullptr);
     if (status == kStatusSuccess) {
         ROS_INFO("LiDAR %s mode set successfully.", lidar->info.broadcast_code);
+        // Reset the connect state to allow proper reinitialization
+        lidar->connect_state = kConnectStateOn;
         return true;
     } else {
         ROS_ERROR("Failed to set LiDAR %s mode. Status code: %d", lidar->info.broadcast_code, status);
@@ -283,19 +366,27 @@ void LdsLidar::OnDeviceChange(const DeviceInfo *info, DeviceEvent type) {
       p_lidar->info = *info;
     }
   } else if (type == kEventDisconnect) {
-    printf("Lidar[%s] disconnect!\n", info->broadcast_code);
+    ROS_INFO("Lidar[%s] disconnected", info->broadcast_code);
     ResetLidar(p_lidar, kSourceRawLidar);
   } else if (type == kEventStateChange) {
+    LidarState previous_state = p_lidar->info.state;
     p_lidar->info = *info;
+       
+    // Check if the LiDAR has transitioned to the normal state
+    if (info->state == kLidarStateNormal) {
+      ROS_INFO("Lidar[%s] transitioned to normal state. Reinitializing...", info->broadcast_code);
+      g_lds_ldiar->ReinitializeLidar(handle);
+    }
   }
 
-  if (p_lidar->connect_state == kConnectStateOn) {
-    printf("Lidar[%s] status_code[%d] working state[%d] feature[%d]\n",
+  ROS_INFO("Lidar[%s] status_code[%d] working state[%d] feature[%d] connect_state[%d]",
            p_lidar->info.broadcast_code,
            p_lidar->info.status.status_code.error_code, p_lidar->info.state,
-           p_lidar->info.feature);
-    SetErrorMessageCallback(handle, LidarErrorStatusCb);
+           p_lidar->info.feature, p_lidar->connect_state);
+  
+  SetErrorMessageCallback(handle, LidarErrorStatusCb);
 
+  if (p_lidar->connect_state == kConnectStateOn) {
     /** Config lidar parameter */
     if (p_lidar->info.state == kLidarStateNormal) {
       /** Ensure the thread safety for set_bits and connect_state */
@@ -332,11 +423,11 @@ void LdsLidar::OnDeviceChange(const DeviceInfo *info, DeviceEvent type) {
       if (kDeviceTypeLidarTele == info->type) {
         if (p_lidar->config.enable_high_sensitivity) {
           LidarEnableHighSensitivity(handle, SetHighSensitivityCb, g_lds_ldiar);
-          printf("Enable high sensitivity\n");
+          ROS_INFO("Enable high sensitivity");
         } else {
           LidarDisableHighSensitivity(handle, SetHighSensitivityCb,
                                       g_lds_ldiar);
-          printf("Disable high sensitivity\n");
+          ROS_INFO("Disable high sensitivity");
         }
         p_lidar->config.set_bits |= kConfigSetHighSensitivity;
       }

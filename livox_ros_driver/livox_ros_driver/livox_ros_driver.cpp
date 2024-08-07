@@ -43,7 +43,7 @@ const int32_t kSdkVersionMajorLimit = 2;
 bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
                           livox_ros_driver::LidarControl::Response &res) {
     ROS_INFO("Received LidarControl service call");
-    uint32_t interval_ms = 100;  // Or whatever default value is appropriate
+    uint32_t interval_ms = 100;
     LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
     if (lidar == nullptr) {
         ROS_ERROR("LiDAR driver not initialized");
@@ -51,7 +51,7 @@ bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
         return true;
     }
 
-    uint8_t handle = 0;  // Assume we're controlling the first connected LiDAR
+    uint8_t handle = 0;
     std::string broadcast_code = lidar->GetConnectedLidarBroadcastCode(handle);
     if (broadcast_code.empty()) {
         ROS_ERROR("No LiDAR connected");
@@ -68,6 +68,12 @@ bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
         bool success = lidar->SetLidarMode(handle, mode);
         res.current_state = lidar->GetLidarState(handle);
         res.message = success ? "LiDAR state set successfully" : "Failed to set LiDAR state";
+        
+        // If waking up the LiDAR, reinitialize it
+        if (success && mode == kLidarModeNormal) {
+            ROS_INFO("Reinitializing LiDAR after wake-up");
+            lidar->ReinitializeLidar(handle);
+        }
     } else {
         ROS_INFO("Retrieving current LiDAR state");
         res.current_state = lidar->GetLidarState(handle);

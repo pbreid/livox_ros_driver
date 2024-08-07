@@ -55,6 +55,7 @@ class LdsLidar : public Lds {
   std::string GetConnectedLidarBroadcastCode(uint8_t handle = 0);
   bool SetLidarMode(uint8_t handle, LidarMode mode);
   bool GetLidarState(uint8_t handle);
+  void ReinitializeLidar(uint8_t handle);
 
   int DeInitLdsLidar(void);
 
