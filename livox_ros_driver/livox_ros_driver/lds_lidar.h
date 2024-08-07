@@ -51,6 +51,8 @@ class LdsLidar : public Lds {
 
   int SetLidarSleep(uint8_t handle);
   int SetLidarWake(uint8_t handle);
+  bool GetLidarState(uint8_t handle);
+  int SetLidarState(uint8_t handle, bool target_state);
   int InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
                    const char *user_config_path);
   int DeInitLdsLidar(void);

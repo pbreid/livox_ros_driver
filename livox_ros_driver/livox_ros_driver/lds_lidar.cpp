@@ -176,6 +176,22 @@ int LdsLidar::SetLidarWake(uint8_t handle) {
     return 0;
 }
 
+bool LdsLidar::GetLidarState(uint8_t handle) {
+    if (handle >= kMaxLidarCount) {
+        return false;
+    }
+    LidarDevice* p_lidar = &(lidars_[handle]);
+    return p_lidar->connect_state == kConnectStateSampling;
+}
+
+int LdsLidar::SetLidarState(uint8_t handle, bool target_state) {
+    if (target_state) {
+        return SetLidarWake(handle);
+    } else {
+        return SetLidarSleep(handle);
+    }
+}
+
 int LdsLidar::DeInitLdsLidar(void) {
   if (!is_initialized_) {
     printf("LiDAR data source is not exit");

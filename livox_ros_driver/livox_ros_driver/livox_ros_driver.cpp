@@ -23,6 +23,7 @@
 //
 
 #include "include/livox_ros_driver.h"
+#include "livox_ros_driver/LidarControl.h"
 
 #include <chrono>
 #include <vector>
@@ -75,6 +76,30 @@ bool wakeCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &
     return true;
 }
 
+bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
+                          livox_ros_driver::LidarControl::Response &res) {
+    uint32_t interval_ms = 100;  // Default value
+    LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
+    if (lidar == nullptr) {
+        res.message = "LiDAR not initialized";
+        return true;
+    }
+
+    // Assuming we're controlling the first LiDAR. Modify if needed.
+    uint8_t handle = 0;
+
+    if (req.set_state) {
+        int result = lidar->SetLidarState(handle, req.target_state);
+        res.current_state = lidar->GetLidarState(handle);
+        res.message = (result == 0) ? "LiDAR state set successfully" : "Failed to set LiDAR state";
+    } else {
+        res.current_state = lidar->GetLidarState(handle);
+        res.message = "Current LiDAR state retrieved";
+    }
+
+    return true;
+}
+
 int main(int argc, char **argv) {
   ROS_INFO("Livox Ros Driver Version: %s", LIVOX_ROS_DRIVER_VERSION_STRING);
 
@@ -102,6 +127,8 @@ int main(int argc, char **argv) {
   double publish_freq = 10.0; /* Hz */
   int output_type = kOutputToRos;
   std::string frame_id = "livox_frame";
+
+  ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control", lidarControlCallback);
 
   livox_node.getParam("xfer_format", xfer_format);
   livox_node.getParam("multi_topic", multi_topic);
