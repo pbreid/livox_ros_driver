@@ -134,6 +134,48 @@ int LdsLidar::InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
   return 0;
 }
 
+int LdsLidar::SetLidarSleep(uint8_t handle) {
+    if (handle >= kMaxLidarCount) {
+        return -1;
+    }
+
+    LidarDevice* p_lidar = &(lidars_[handle]);
+    if (p_lidar->connect_state != kConnectStateSampling) {
+        printf("Lidar %d is not in sampling state, cannot set to sleep mode.\n", handle);
+        return -1;
+    }
+
+    livox_status status = LidarStopSampling(handle, nullptr, nullptr);
+    if (status != kStatusSuccess) {
+        printf("Set lidar %d to sleep mode failed.\n", handle);
+        return -1;
+    }
+
+    printf("Set lidar %d to sleep mode success.\n", handle);
+    return 0;
+}
+
+int LdsLidar::SetLidarWake(uint8_t handle) {
+    if (handle >= kMaxLidarCount) {
+        return -1;
+    }
+
+    LidarDevice* p_lidar = &(lidars_[handle]);
+    if (p_lidar->connect_state == kConnectStateSampling) {
+        printf("Lidar %d is already in wake mode.\n", handle);
+        return 0;
+    }
+
+    livox_status status = LidarStartSampling(handle, nullptr, nullptr);
+    if (status != kStatusSuccess) {
+        printf("Set lidar %d to wake mode failed.\n", handle);
+        return -1;
+    }
+
+    printf("Set lidar %d to wake mode success.\n", handle);
+    return 0;
+}
+
 int LdsLidar::DeInitLdsLidar(void) {
   if (!is_initialized_) {
     printf("LiDAR data source is not exit");

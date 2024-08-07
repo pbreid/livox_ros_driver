@@ -33,10 +33,47 @@
 #include "lds_lidar.h"
 #include "lds_lvx.h"
 #include "livox_sdk.h"
+#include <std_srvs/SetBool.h>
+
+bool sleepCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+bool wakeCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+ros::ServiceServer sleep_service;
+ros::ServiceServer wake_service;
 
 using namespace livox_ros;
 
 const int32_t kSdkVersionMajorLimit = 2;
+
+
+bool sleepCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
+    uint32_t interval_ms = 100;  // Default value
+    LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
+    if (lidar == nullptr) {
+        res.success = false;
+        res.message = "LiDAR not initialized";
+        return true;
+    }
+
+    int result = lidar->SetLidarSleep(0);
+    res.success = (result == 0);
+    res.message = (result == 0) ? "LiDAR set to sleep mode" : "Failed to set LiDAR to sleep mode";
+    return true;
+}
+
+bool wakeCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
+    uint32_t interval_ms = 100;  // Default value
+    LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
+    if (lidar == nullptr) {
+        res.success = false;
+        res.message = "LiDAR not initialized";
+        return true;
+    }
+
+    int result = lidar->SetLidarWake(0);
+    res.success = (result == 0);
+    res.message = (result == 0) ? "LiDAR set to wake mode" : "Failed to set LiDAR to wake mode";
+    return true;
+}
 
 int main(int argc, char **argv) {
   ROS_INFO("Livox Ros Driver Version: %s", LIVOX_ROS_DRIVER_VERSION_STRING);
@@ -103,7 +140,9 @@ int main(int argc, char **argv) {
     lddc->RegisterLds(static_cast<Lds *>(read_lidar));
     ret = read_lidar->InitLdsLidar(bd_code_list, user_config_path.c_str());
     if (!ret) {
-      ROS_INFO("Init lds lidar success!");
+      ROS_INFO("Init lds lidar success!");     
+      sleep_service = livox_node.advertiseService("livox_lidar_sleep", sleepCallback);
+      wake_service = livox_node.advertiseService("livox_lidar_wake", wakeCallback);
     } else {
       ROS_ERROR("Init lds lidar fail!");
     }
