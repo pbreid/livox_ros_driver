@@ -36,67 +36,39 @@
 #include "livox_sdk.h"
 #include <std_srvs/SetBool.h>
 
-bool sleepCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
-bool wakeCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
-ros::ServiceServer sleep_service;
-ros::ServiceServer wake_service;
-
 using namespace livox_ros;
 
 const int32_t kSdkVersionMajorLimit = 2;
 
 
-bool sleepCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
-    uint32_t interval_ms = 100;  // Default value
-    LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
-    if (lidar == nullptr) {
-        res.success = false;
-        res.message = "LiDAR not initialized";
-        return true;
-    }
-
-    int result = lidar->SetLidarSleep(0);
-    res.success = (result == 0);
-    res.message = (result == 0) ? "LiDAR set to sleep mode" : "Failed to set LiDAR to sleep mode";
-    return true;
-}
-
-bool wakeCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res) {
-    uint32_t interval_ms = 100;  // Default value
-    LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
-    if (lidar == nullptr) {
-        res.success = false;
-        res.message = "LiDAR not initialized";
-        return true;
-    }
-
-    int result = lidar->SetLidarWake(0);
-    res.success = (result == 0);
-    res.message = (result == 0) ? "LiDAR set to wake mode" : "Failed to set LiDAR to wake mode";
-    return true;
-}
-
 bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
                           livox_ros_driver::LidarControl::Response &res) {
+    ROS_DEBUG("Livox LiDAR control service called");
+    ROS_INFO("Received LidarControl service call");
     uint32_t interval_ms = 100;  // Default value
     LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
     if (lidar == nullptr) {
+        ROS_ERROR("LiDAR not initialized");
         res.message = "LiDAR not initialized";
         return true;
     }
 
-    // Assuming we're controlling the first LiDAR. Modify if needed.
     uint8_t handle = 0;
+    ROS_INFO("Request - set_state: %d, target_state: %d", req.set_state, req.target_state);
 
     if (req.set_state) {
+        ROS_INFO("Attempting to set LiDAR state");
         int result = lidar->SetLidarState(handle, req.target_state);
         res.current_state = lidar->GetLidarState(handle);
         res.message = (result == 0) ? "LiDAR state set successfully" : "Failed to set LiDAR state";
+        ROS_INFO("Set LiDAR state result: %d", result);
     } else {
+        ROS_INFO("Retrieving current LiDAR state");
         res.current_state = lidar->GetLidarState(handle);
         res.message = "Current LiDAR state retrieved";
     }
 
+    ROS_INFO("Response - current_state: %d, message: %s", res.current_state, res.message.c_str());
     return true;
 }
 
@@ -110,6 +82,16 @@ int main(int argc, char **argv) {
   }
   ros::init(argc, argv, "livox_lidar_publisher");
   ros::NodeHandle livox_node;
+
+  //ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control", lidarControlCallback);
+  ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control_new", lidarControlCallback);
+  if (!lidar_control_service) {
+      ROS_ERROR("Failed to create Livox LiDAR control service");
+      // Consider whether you want to exit here or continue
+      // return -1;  // Uncomment this if you want to exit on failure
+  } else {
+      ROS_INFO("Livox LiDAR control service created successfully");
+  }
 
   /** Check sdk version */
   LivoxSdkVersion _sdkversion;
@@ -127,8 +109,6 @@ int main(int argc, char **argv) {
   double publish_freq = 10.0; /* Hz */
   int output_type = kOutputToRos;
   std::string frame_id = "livox_frame";
-
-  ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control", lidarControlCallback);
 
   livox_node.getParam("xfer_format", xfer_format);
   livox_node.getParam("multi_topic", multi_topic);
@@ -168,8 +148,8 @@ int main(int argc, char **argv) {
     ret = read_lidar->InitLdsLidar(bd_code_list, user_config_path.c_str());
     if (!ret) {
       ROS_INFO("Init lds lidar success!");     
-      sleep_service = livox_node.advertiseService("livox_lidar_sleep", sleepCallback);
-      wake_service = livox_node.advertiseService("livox_lidar_wake", wakeCallback);
+      
+
     } else {
       ROS_ERROR("Init lds lidar fail!");
     }
@@ -224,9 +204,17 @@ int main(int argc, char **argv) {
   }
 
   ros::Time::init();
+
+  ros::AsyncSpinner spinner(2); // Use 2 threads
+  spinner.start();
+
+  ros::Rate loop_rate(100); // 100 Hz, adjust as needed
+
   while (ros::ok()) {
     lddc->DistributeLidarData();
+    loop_rate.sleep();
   }
+  spinner.stop();
 
   return 0;
 }

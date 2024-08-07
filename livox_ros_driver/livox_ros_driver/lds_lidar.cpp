@@ -34,6 +34,8 @@
 #include "rapidjson/filereadstream.h"
 #include "rapidjson/stringbuffer.h"
 
+#include <ros/console.h>
+
 using namespace std;
 
 namespace livox_ros {
@@ -135,6 +137,7 @@ int LdsLidar::InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
 }
 
 int LdsLidar::SetLidarSleep(uint8_t handle) {
+    ROS_INFO("SetLidarSleep called with handle: %d", handle);
     if (handle >= kMaxLidarCount) {
         return -1;
     }
@@ -156,6 +159,7 @@ int LdsLidar::SetLidarSleep(uint8_t handle) {
 }
 
 int LdsLidar::SetLidarWake(uint8_t handle) {
+    ROS_INFO("SetLidarWake called with handle: %d", handle);
     if (handle >= kMaxLidarCount) {
         return -1;
     }
@@ -185,6 +189,7 @@ bool LdsLidar::GetLidarState(uint8_t handle) {
 }
 
 int LdsLidar::SetLidarState(uint8_t handle, bool target_state) {
+    ROS_INFO("SetLidarState called with handle: %d, target_state: %d", handle, target_state);
     if (target_state) {
         return SetLidarWake(handle);
     } else {
