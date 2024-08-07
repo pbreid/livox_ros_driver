@@ -40,29 +40,34 @@ using namespace livox_ros;
 
 const int32_t kSdkVersionMajorLimit = 2;
 
-
 bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
                           livox_ros_driver::LidarControl::Response &res) {
     ROS_INFO("Received LidarControl service call");
-    uint32_t interval_ms = 100;  // Default value
+    uint32_t interval_ms = 100;  // Or whatever default value is appropriate
     LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
     if (lidar == nullptr) {
-        ROS_ERROR("LiDAR not initialized");
-        res.message = "LiDAR not initialized";
+        ROS_ERROR("LiDAR driver not initialized");
+        res.message = "LiDAR driver not initialized";
         return true;
     }
 
-    uint8_t handle = 0;  // Assume we're controlling the first LiDAR
-    std::string broadcast_code = "YOUR_LIDAR_BROADCAST_CODE";  // Replace with actual code
+    uint8_t handle = 0;  // Assume we're controlling the first connected LiDAR
+    std::string broadcast_code = lidar->GetConnectedLidarBroadcastCode(handle);
+    if (broadcast_code.empty()) {
+        ROS_ERROR("No LiDAR connected");
+        res.message = "No LiDAR connected";
+        return true;
+    }
 
-    ROS_INFO("Request - set_state: %d, target_state: %d", req.set_state, req.target_state);
+    ROS_INFO("Request - set_state: %d, target_state: %d for LiDAR: %s", 
+             req.set_state, req.target_state, broadcast_code.c_str());
 
     if (req.set_state) {
         ROS_INFO("Attempting to set LiDAR state");
         LidarMode mode = req.target_state ? kLidarModeNormal : kLidarModePowerSaving;
-        lidar->SetLidarMode(broadcast_code, mode);
+        bool success = lidar->SetLidarMode(handle, mode);
         res.current_state = lidar->GetLidarState(handle);
-        res.message = "LiDAR state set successfully";
+        res.message = success ? "LiDAR state set successfully" : "Failed to set LiDAR state";
     } else {
         ROS_INFO("Retrieving current LiDAR state");
         res.current_state = lidar->GetLidarState(handle);
@@ -177,6 +182,7 @@ int main(int argc, char **argv) {
     }
   } else {
     ROS_INFO("Data Source is lvx file.");
+
 
     std::string cmdline_file_path;
     livox_node.getParam("cmdline_file_path", cmdline_file_path);

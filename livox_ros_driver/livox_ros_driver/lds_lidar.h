@@ -49,14 +49,13 @@ class LdsLidar : public Lds {
     return &lds_lidar;
   }
 
-  void SetLidarMode(const std::string& broadcast_code, LidarMode mode);
-  // int SetLidarSleep(uint8_t handle);
-  // int SetLidarWake(uint8_t handle);
-
-  // int SetLidarState(uint8_t handle, bool target_state);
   int InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
                    const char *user_config_path);
+  LidarDevice* GetConnectedLidar(uint8_t handle = 0);
+  std::string GetConnectedLidarBroadcastCode(uint8_t handle = 0);
+  bool SetLidarMode(uint8_t handle, LidarMode mode);
   bool GetLidarState(uint8_t handle);
+
   int DeInitLdsLidar(void);
 
  private:

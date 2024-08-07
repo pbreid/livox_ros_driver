@@ -136,22 +136,42 @@ int LdsLidar::InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
   return 0;
 }
 
-void LdsLidar::SetLidarMode(const std::string& broadcast_code, LidarMode mode) {
-    uint8_t handle = 0;  // Assume we're using the first LiDAR
+LidarDevice* LdsLidar::GetConnectedLidar(uint8_t handle) {
+    if (handle >= kMaxLidarCount || !lidars_[handle].connect_state) {
+        return nullptr;
+    }
+    return &lidars_[handle];
+}
+
+std::string LdsLidar::GetConnectedLidarBroadcastCode(uint8_t handle) {
+    LidarDevice* lidar = GetConnectedLidar(handle);
+    return lidar ? lidar->info.broadcast_code : "";
+}
+
+bool LdsLidar::SetLidarMode(uint8_t handle, LidarMode mode) {
+    LidarDevice* lidar = GetConnectedLidar(handle);
+    if (!lidar) {
+        ROS_ERROR("LiDAR with handle %d not connected.", handle);
+        return false;
+    }
+
     livox_status status = LidarSetMode(handle, mode, nullptr, nullptr);
     if (status == kStatusSuccess) {
-        ROS_INFO("LiDAR %s mode set successfully.", broadcast_code.c_str());
+        ROS_INFO("LiDAR %s mode set successfully.", lidar->info.broadcast_code);
+        return true;
     } else {
-        ROS_ERROR("Failed to set LiDAR %s mode. Status code: %d", broadcast_code.c_str(), status);
+        ROS_ERROR("Failed to set LiDAR %s mode. Status code: %d", lidar->info.broadcast_code, status);
+        return false;
     }
 }
 
 bool LdsLidar::GetLidarState(uint8_t handle) {
-    if (handle >= kMaxLidarCount) {
+    LidarDevice* lidar = GetConnectedLidar(handle);
+    if (!lidar) {
+        ROS_ERROR("LiDAR with handle %d not connected.", handle);
         return false;
     }
-    LidarDevice* p_lidar = &(lidars_[handle]);
-    return p_lidar->connect_state == kConnectStateSampling;
+    return lidar->connect_state == kConnectStateSampling;
 }
 
 int LdsLidar::DeInitLdsLidar(void) {
