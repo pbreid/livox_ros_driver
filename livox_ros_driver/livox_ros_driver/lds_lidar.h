@@ -30,6 +30,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <map>
 
 #include "lds.h"
 #include "livox_sdk.h"
@@ -48,19 +49,21 @@ class LdsLidar : public Lds {
     return &lds_lidar;
   }
 
+  void SetLidarMode(const std::string& broadcast_code, LidarMode mode);
+  // int SetLidarSleep(uint8_t handle);
+  // int SetLidarWake(uint8_t handle);
 
-  int SetLidarSleep(uint8_t handle);
-  int SetLidarWake(uint8_t handle);
-  bool GetLidarState(uint8_t handle);
-  int SetLidarState(uint8_t handle, bool target_state);
+  // int SetLidarState(uint8_t handle, bool target_state);
   int InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
                    const char *user_config_path);
+  bool GetLidarState(uint8_t handle);
   int DeInitLdsLidar(void);
 
  private:
   LdsLidar(uint32_t interval_ms);
   LdsLidar(const LdsLidar &) = delete;
   ~LdsLidar();
+  std::map<std::string, uint8_t> lidar_handles_;
   LdsLidar &operator=(const LdsLidar &) = delete;
   virtual void PrepareExit(void);
 

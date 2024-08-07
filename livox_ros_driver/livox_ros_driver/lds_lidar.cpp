@@ -136,48 +136,14 @@ int LdsLidar::InitLdsLidar(std::vector<std::string> &broadcast_code_strs,
   return 0;
 }
 
-int LdsLidar::SetLidarSleep(uint8_t handle) {
-    ROS_INFO("SetLidarSleep called with handle: %d", handle);
-    if (handle >= kMaxLidarCount) {
-        return -1;
+void LdsLidar::SetLidarMode(const std::string& broadcast_code, LidarMode mode) {
+    uint8_t handle = 0;  // Assume we're using the first LiDAR
+    livox_status status = LidarSetMode(handle, mode, nullptr, nullptr);
+    if (status == kStatusSuccess) {
+        ROS_INFO("LiDAR %s mode set successfully.", broadcast_code.c_str());
+    } else {
+        ROS_ERROR("Failed to set LiDAR %s mode. Status code: %d", broadcast_code.c_str(), status);
     }
-
-    LidarDevice* p_lidar = &(lidars_[handle]);
-    if (p_lidar->connect_state != kConnectStateSampling) {
-        printf("Lidar %d is not in sampling state, cannot set to sleep mode.\n", handle);
-        return -1;
-    }
-
-    livox_status status = LidarStopSampling(handle, nullptr, nullptr);
-    if (status != kStatusSuccess) {
-        printf("Set lidar %d to sleep mode failed.\n", handle);
-        return -1;
-    }
-
-    printf("Set lidar %d to sleep mode success.\n", handle);
-    return 0;
-}
-
-int LdsLidar::SetLidarWake(uint8_t handle) {
-    ROS_INFO("SetLidarWake called with handle: %d", handle);
-    if (handle >= kMaxLidarCount) {
-        return -1;
-    }
-
-    LidarDevice* p_lidar = &(lidars_[handle]);
-    if (p_lidar->connect_state == kConnectStateSampling) {
-        printf("Lidar %d is already in wake mode.\n", handle);
-        return 0;
-    }
-
-    livox_status status = LidarStartSampling(handle, nullptr, nullptr);
-    if (status != kStatusSuccess) {
-        printf("Set lidar %d to wake mode failed.\n", handle);
-        return -1;
-    }
-
-    printf("Set lidar %d to wake mode success.\n", handle);
-    return 0;
 }
 
 bool LdsLidar::GetLidarState(uint8_t handle) {
@@ -186,15 +152,6 @@ bool LdsLidar::GetLidarState(uint8_t handle) {
     }
     LidarDevice* p_lidar = &(lidars_[handle]);
     return p_lidar->connect_state == kConnectStateSampling;
-}
-
-int LdsLidar::SetLidarState(uint8_t handle, bool target_state) {
-    ROS_INFO("SetLidarState called with handle: %d, target_state: %d", handle, target_state);
-    if (target_state) {
-        return SetLidarWake(handle);
-    } else {
-        return SetLidarSleep(handle);
-    }
 }
 
 int LdsLidar::DeInitLdsLidar(void) {

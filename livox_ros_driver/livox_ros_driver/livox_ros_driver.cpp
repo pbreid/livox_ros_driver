@@ -43,7 +43,6 @@ const int32_t kSdkVersionMajorLimit = 2;
 
 bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
                           livox_ros_driver::LidarControl::Response &res) {
-    ROS_DEBUG("Livox LiDAR control service called");
     ROS_INFO("Received LidarControl service call");
     uint32_t interval_ms = 100;  // Default value
     LdsLidar* lidar = LdsLidar::GetInstance(interval_ms);
@@ -53,15 +52,17 @@ bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
         return true;
     }
 
-    uint8_t handle = 0;
+    uint8_t handle = 0;  // Assume we're controlling the first LiDAR
+    std::string broadcast_code = "YOUR_LIDAR_BROADCAST_CODE";  // Replace with actual code
+
     ROS_INFO("Request - set_state: %d, target_state: %d", req.set_state, req.target_state);
 
     if (req.set_state) {
         ROS_INFO("Attempting to set LiDAR state");
-        int result = lidar->SetLidarState(handle, req.target_state);
+        LidarMode mode = req.target_state ? kLidarModeNormal : kLidarModePowerSaving;
+        lidar->SetLidarMode(broadcast_code, mode);
         res.current_state = lidar->GetLidarState(handle);
-        res.message = (result == 0) ? "LiDAR state set successfully" : "Failed to set LiDAR state";
-        ROS_INFO("Set LiDAR state result: %d", result);
+        res.message = "LiDAR state set successfully";
     } else {
         ROS_INFO("Retrieving current LiDAR state");
         res.current_state = lidar->GetLidarState(handle);
