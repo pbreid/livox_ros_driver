@@ -95,8 +95,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "livox_lidar_publisher");
   ros::NodeHandle livox_node;
 
-  //ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control", lidarControlCallback);
-  ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control_new", lidarControlCallback);
+  ros::ServiceServer lidar_control_service = livox_node.advertiseService("livox_lidar_control", lidarControlCallback);
   if (!lidar_control_service) {
       ROS_ERROR("Failed to create Livox LiDAR control service");
       // Consider whether you want to exit here or continue
