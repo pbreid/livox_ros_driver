@@ -64,7 +64,7 @@ bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
 
     if (req.set_state) {
         ROS_INFO("Attempting to set LiDAR state");
-        LidarMode mode = req.target_state ? kLidarModeNormal : kLidarModeStandby;
+        LidarMode mode = req.target_state ? kLidarModeNormal : kLidarModePowerSaving;
         bool success = lidar->SetLidarMode(handle, mode);
         res.current_state = lidar->GetLidarState(handle);
         res.message = success ? "LiDAR state set successfully" : "Failed to set LiDAR state";
