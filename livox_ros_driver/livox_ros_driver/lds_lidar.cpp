@@ -202,17 +202,10 @@ void LdsLidar::ReinitializeLidar(uint8_t handle) {
     }
 
     int retry_count = 0;
-    int max_retries = 20; 
+    int max_retries = 10; 
     while (p_lidar->config.set_bits != 0 && retry_count < max_retries) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       retry_count++;
-    }
-
-    if (p_lidar->config.set_bits != 0) {
-      ROS_WARN("Not all configurations were set for LiDAR[%s]. Remaining set_bits: 0x%X", 
-              p_lidar->info.broadcast_code, p_lidar->config.set_bits);
-    } else {
-      ROS_INFO("All configurations successfully set for LiDAR[%s]", p_lidar->info.broadcast_code);
     }
 
     // Start sampling

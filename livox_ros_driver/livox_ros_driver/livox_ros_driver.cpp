@@ -59,9 +59,6 @@ bool lidarControlCallback(livox_ros_driver::LidarControl::Request &req,
         return true;
     }
 
-    ROS_INFO("Request - set_state: %d, target_state: %d for LiDAR: %s", 
-             req.set_state, req.target_state, broadcast_code.c_str());
-
     if (req.set_state) {
         ROS_INFO("Attempting to set LiDAR state");
         LidarMode mode = req.target_state ? kLidarModeNormal : kLidarModePowerSaving;
